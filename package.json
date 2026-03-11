@@ -31,6 +31,7 @@
   },
   "homepage": "https://github.com/gobitfly/eth2-beaconchain-explorer#readme",
   "dependencies": {
+    "@isaacs/brace-expansion": "^5.0.1",
     "@redocly/cli": "^2.8.0",
     "eslint": "^8.18.0",
     "eslint-plugin-html": "^6.2.0",
