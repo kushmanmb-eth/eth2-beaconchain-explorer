@@ -26,7 +26,7 @@ require (
 	github.com/gobitfly/eth-rewards v0.1.2-0.20230403064929-411ddc40a5f7
 	github.com/gobitfly/scs/v2 v2.0.0-20240516120302-8754831e6b9b
 	github.com/golang-jwt/jwt v3.2.2+incompatible
-	github.com/golang-jwt/jwt/v4 v4.5.1
+	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/golang/protobuf v1.5.4
 	github.com/gomodule/redigo v1.8.0
 	github.com/google/go-cmp v0.6.0
