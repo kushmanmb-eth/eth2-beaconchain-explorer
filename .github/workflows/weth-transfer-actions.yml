@@ -1,5 +1,8 @@
 name: WETH Transfer Actions CI
 
+permissions:
+  contents: read
+
 on:
   push:
     branches:
