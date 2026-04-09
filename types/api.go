@@ -97,6 +97,41 @@ type DashboardRequest struct {
 	IndicesOrPubKey string `json:"indicesOrPubkey"`
 }
 
+// ApiV2ValidatorsRequest is the request body for the POST /api/v2/ethereum/validators endpoint.
+type ApiV2ValidatorsRequest struct {
+	Validator *ApiV2ValidatorIdentifiers `json:"validator"`
+	Chain     string                     `json:"chain"`
+	Cursor    string                     `json:"cursor"`
+	PageSize  int                        `json:"page_size"`
+}
+
+type ApiV2ValidatorIdentifiers struct {
+	ValidatorIdentifiers []interface{} `json:"validator_identifiers"`
+}
+
+// ApiV2ValidatorsResponse is the response body for the POST /api/v2/ethereum/validators endpoint.
+type ApiV2ValidatorsResponse struct {
+	Data       []ApiV2ValidatorData `json:"data"`
+	NextCursor string               `json:"next_cursor"`
+}
+
+type ApiV2ValidatorData struct {
+	Index                      uint64 `json:"index"`
+	PublicKey                  string `json:"public_key"`
+	Status                     string `json:"status"`
+	Balance                    int64  `json:"balance"`
+	EffectiveBalance           int64  `json:"effective_balance"`
+	Slashed                    bool   `json:"slashed"`
+	ActivationEligibilityEpoch int64  `json:"activation_eligibility_epoch"`
+	ActivationEpoch            int64  `json:"activation_epoch"`
+	ExitEpoch                  int64  `json:"exit_epoch"`
+	WithdrawableEpoch          int64  `json:"withdrawable_epoch"`
+	WithdrawalCredentials      string `json:"withdrawal_credentials"`
+	LastAttestationSlot        int64  `json:"last_attestation_slot"`
+	Name                       string `json:"name"`
+	TotalWithdrawals           uint64 `json:"total_withdrawals"`
+}
+
 type DiscordEmbed struct {
 	Color       string              `json:"color,omitempty"`
 	Description string              `json:"description,omitempty"`

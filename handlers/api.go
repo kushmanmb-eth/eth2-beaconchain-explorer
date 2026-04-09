@@ -4512,3 +4512,254 @@ func parseApiValidatorParamToPubkeys(origParam string, limit int) (pubkeys pq.By
 
 	return queryIndicesDeduped, nil
 }
+
+// ApiV2EthereumValidators godoc
+// @Summary Get validators (v2)
+// @Description Returns information about one or more validators by their index or public key with cursor-based pagination.
+// @Tags Validators
+// @Accept  json
+// @Produce  json
+// @Param  request body types.ApiV2ValidatorsRequest true "Validators request"
+// @Success 200 {object} types.ApiV2ValidatorsResponse
+// @Failure 400 {object} types.ApiResponse
+// @Router /api/v2/ethereum/validators [post]
+func ApiV2EthereumValidators(w http.ResponseWriter, r *http.Request) {
+w.Header().Set("Content-Type", "application/json")
+
+var req types.ApiV2ValidatorsRequest
+if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+SendBadRequestResponse(w, r.URL.String(), "error decoding request body")
+return
+}
+
+if req.Validator == nil || len(req.Validator.ValidatorIdentifiers) == 0 {
+SendBadRequestResponse(w, r.URL.String(), "validator_identifiers must not be empty")
+return
+}
+
+maxValidators := getUserPremium(r).MaxValidators
+if len(req.Validator.ValidatorIdentifiers) > maxValidators {
+SendBadRequestResponse(w, r.URL.String(), fmt.Sprintf("only a maximum of %d validators are allowed", maxValidators))
+return
+}
+
+pageSize := req.PageSize
+if pageSize <= 0 {
+pageSize = 10
+}
+if pageSize > 100 {
+pageSize = 100
+}
+
+// Parse cursor: the cursor encodes the last validator index returned
+var cursorIndex uint64
+if req.Cursor != "" {
+parsed, err := strconv.ParseUint(req.Cursor, 10, 64)
+if err != nil {
+SendBadRequestResponse(w, r.URL.String(), "invalid cursor value")
+return
+}
+cursorIndex = parsed
+}
+
+// Parse validator identifiers into indices
+var indices []uint64
+var pubkeys pq.ByteaArray
+for _, id := range req.Validator.ValidatorIdentifiers {
+switch v := id.(type) {
+case float64:
+indices = append(indices, uint64(v))
+case string:
+if strings.Contains(v, "0x") || len(v) == 96 {
+pubkey, err := hex.DecodeString(strings.Replace(v, "0x", "", -1))
+if err != nil {
+SendBadRequestResponse(w, r.URL.String(), "invalid pubkey in validator_identifiers")
+return
+}
+pubkeys = append(pubkeys, pubkey)
+} else {
+idx, err := strconv.ParseUint(v, 10, 64)
+if err != nil {
+SendBadRequestResponse(w, r.URL.String(), "invalid validator index in validator_identifiers")
+return
+}
+indices = append(indices, idx)
+}
+default:
+SendBadRequestResponse(w, r.URL.String(), "validator_identifiers must be integers or pubkey strings")
+return
+}
+}
+
+// Resolve pubkeys to indices
+if len(pubkeys) > 0 {
+var fromPubkeys []uint64
+if err := db.ReaderDb.Select(&fromPubkeys, "SELECT validatorindex FROM validators WHERE pubkey = ANY($1)", pubkeys); err != nil {
+sendServerErrorResponse(w, r.URL.String(), "error retrieving data, please try again later")
+return
+}
+indices = append(indices, fromPubkeys...)
+}
+
+if len(indices) == 0 {
+SendBadRequestResponse(w, r.URL.String(), "no valid validators found for the given identifiers")
+return
+}
+
+// Deduplicate and sort indices
+seen := make(map[uint64]struct{}, len(indices))
+deduped := make([]uint64, 0, len(indices))
+for _, idx := range indices {
+if _, ok := seen[idx]; !ok {
+seen[idx] = struct{}{}
+deduped = append(deduped, idx)
+}
+}
+sort.Slice(deduped, func(i, j int) bool { return deduped[i] < deduped[j] })
+
+// Apply cursor-based pagination
+start := 0
+if cursorIndex > 0 {
+for i, idx := range deduped {
+if idx > cursorIndex {
+start = i
+break
+}
+}
+// If cursor is past all indices, return empty
+if start == 0 && len(deduped) > 0 && deduped[len(deduped)-1] <= cursorIndex {
+resp := &types.ApiV2ValidatorsResponse{
+Data:       []types.ApiV2ValidatorData{},
+NextCursor: "",
+}
+if err := json.NewEncoder(w).Encode(resp); err != nil {
+logger.Errorf("error serializing json data for API %v route: %v", r.URL, err)
+}
+return
+}
+}
+
+end := start + pageSize
+if end > len(deduped) {
+end = len(deduped)
+}
+page := deduped[start:end]
+
+lastExportedDay, err := services.LatestExportedStatisticDay()
+if err != nil {
+sendServerErrorResponse(w, r.URL.String(), "error retrieving data, please try again later")
+return
+}
+_, lastEpochOfDay := utils.GetFirstAndLastEpochForDay(lastExportedDay)
+cutoffSlot := (lastEpochOfDay * utils.Config.Chain.ClConfig.SlotsPerEpoch) + 1
+
+type dbRow struct {
+Validatorindex             uint64 `db:"validatorindex"`
+Pubkey                     string `db:"pubkey"`
+Status                     string `db:"status"`
+Slashed                    bool   `db:"slashed"`
+ActivationEligibilityEpoch int64  `db:"activationeligibilityepoch"`
+ActivationEpoch            int64  `db:"activationepoch"`
+ExitEpoch                  int64  `db:"exitepoch"`
+WithdrawableEpoch          int64  `db:"withdrawableepoch"`
+WithdrawalCredentials      string `db:"withdrawalcredentials"`
+Name                       string `db:"name"`
+TotalWithdrawals           uint64 `db:"total_withdrawals"`
+}
+
+var dbRows []dbRow
+err = db.ReaderDb.Select(&dbRows, `
+WITH today AS (
+SELECT
+w.validatorindex,
+COALESCE(SUM(w.amount), 0) as amount
+FROM blocks_withdrawals w
+INNER JOIN blocks b ON b.blockroot = w.block_root AND b.status = '1'
+WHERE w.validatorindex = ANY($1) AND w.block_slot >= $2
+GROUP BY w.validatorindex
+),
+stats AS (
+SELECT
+vs.validatorindex,
+COALESCE(vs.withdrawals_amount_total, 0) as amount
+FROM validator_stats vs
+WHERE vs.validatorindex = ANY($1) AND vs.day = $3
+),
+withdrawals_summary AS (
+SELECT
+COALESCE(t.validatorindex, s.validatorindex) as validatorindex,
+COALESCE(t.amount, 0) + COALESCE(s.amount, 0) as total
+FROM today t
+FULL JOIN stats s ON t.validatorindex = s.validatorindex
+)
+SELECT
+v.validatorindex, '0x' || encode(pubkey, 'hex') as pubkey, withdrawableepoch,
+'0x' || encode(withdrawalcredentials, 'hex') as withdrawalcredentials,
+slashed,
+activationeligibilityepoch,
+activationepoch,
+exitepoch,
+status,
+CASE WHEN n.name = ve.entity THEN '' ELSE COALESCE(n.name, '') END AS name,
+COALESCE(ws.total, 0) as total_withdrawals
+FROM validators v
+LEFT JOIN validator_names n ON n.publickey = v.pubkey
+LEFT JOIN validator_entities ve ON ve.publickey = v.pubkey
+LEFT JOIN withdrawals_summary ws ON ws.validatorindex = v.validatorindex
+WHERE v.validatorindex = ANY($1)
+ORDER BY v.validatorindex
+`, pq.Array(page), cutoffSlot, lastExportedDay)
+if err != nil {
+logger.Warnf("error retrieving validator data from db: %v", err)
+sendServerErrorResponse(w, r.URL.String(), "could not retrieve db results")
+return
+}
+
+balances, err := db.BigtableClient.GetValidatorBalanceHistory(page, services.LatestEpoch(), services.LatestEpoch())
+if err != nil {
+sendServerErrorResponse(w, r.URL.String(), "could not retrieve validator balance data")
+return
+}
+
+lastAttestationSlots, err := db.BigtableClient.GetLastAttestationSlots(page)
+if err != nil {
+sendServerErrorResponse(w, r.URL.String(), fmt.Sprintf("error getting validator last attestation slots from bigtable: %v", err))
+return
+}
+
+data := make([]types.ApiV2ValidatorData, 0, len(dbRows))
+for _, row := range dbRows {
+entry := types.ApiV2ValidatorData{
+Index:                      row.Validatorindex,
+PublicKey:                  row.Pubkey,
+Status:                     row.Status,
+Slashed:                    row.Slashed,
+ActivationEligibilityEpoch: row.ActivationEligibilityEpoch,
+ActivationEpoch:            row.ActivationEpoch,
+ExitEpoch:                  row.ExitEpoch,
+WithdrawableEpoch:          row.WithdrawableEpoch,
+WithdrawalCredentials:      row.WithdrawalCredentials,
+Name:                       row.Name,
+TotalWithdrawals:           row.TotalWithdrawals,
+}
+if bals, ok := balances[row.Validatorindex]; ok && len(bals) > 0 {
+entry.Balance = int64(bals[0].Balance)
+entry.EffectiveBalance = int64(bals[0].EffectiveBalance)
+}
+entry.LastAttestationSlot = int64(lastAttestationSlots[row.Validatorindex])
+data = append(data, entry)
+}
+
+var nextCursor string
+if end < len(deduped) {
+nextCursor = strconv.FormatUint(page[len(page)-1], 10)
+}
+
+resp := &types.ApiV2ValidatorsResponse{
+Data:       data,
+NextCursor: nextCursor,
+}
+if err := json.NewEncoder(w).Encode(resp); err != nil {
+logger.Errorf("error serializing json data for API %v route: %v", r.URL, err)
+}
+}
