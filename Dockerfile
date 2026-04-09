@@ -1,7 +1,7 @@
 # The dockerfile is currently still WIP and might be broken
 FROM golang:1.23.5 AS build-env
 
-# Install latest Node.js (24.x) and npm for bundling API docs
+# Install latest Node.js LTS (24.14.1) and npm for bundling API docs
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
