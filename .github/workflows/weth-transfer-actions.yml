@@ -68,9 +68,8 @@ jobs:
       - name: Check test results
         run: |
           echo "All WETH transfer action tests passed successfully!"
-          echo "Note: Coverage is 0% because tests verify ABI parsing/encoding,"
-          echo "not the actual contract bindings which require blockchain connection."
-          echo "This is expected for contract binding tests."
+          echo "Note: Tests verify ABI parsing, method encoding/decoding, and event handling."
+          echo "Coverage of auto-generated bindings is 0% as those require blockchain connection."
 
   lint-weth:
     name: Lint WETH Code
