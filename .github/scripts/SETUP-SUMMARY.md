@@ -32,11 +32,11 @@ This implementation configures a GitHub Actions workflow to automatically transf
 ## Key Features
 
 ### Transfer Logic
-- **Amount**: 2 WETH minus gas costs
-- **Smart Gas Calculation**: Estimates gas cost and deducts from transfer amount
+- **Amount**: Exactly 2 WETH (gas paid separately in ETH)
+- **Gas Payment**: Gas fees paid from ETH balance, not deducted from WETH
 - **Safety Checks**:
-  - Verifies WETH balance is sufficient
-  - Verifies ETH balance for gas fees
+  - Verifies WETH balance is sufficient (at least 2 WETH)
+  - Verifies ETH balance for gas fees (separate from WETH)
   - Confirms network is Ethereum mainnet (chainId 1)
   - Resolves ENS name before transfer
 
@@ -70,7 +70,7 @@ Add these secrets in GitHub repository settings:
 
 The wallet must have:
 - **WETH**: At least 2 WETH (WETH9: `0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2`)
-- **ETH**: At least 0.01 ETH for gas fees (recommended)
+- **ETH**: At least 0.01 ETH for gas fees (separate from WETH transfer)
 
 ## How to Use
 
@@ -93,7 +93,7 @@ The workflow will run automatically every day at 9:30 PM UTC starting from April
 ✅ **Secure Practices**:
 - Private keys stored in GitHub Secrets (encrypted)
 - Network verification prevents wrong-network transfers
-- Gas cost deducted from transfer amount
+- Gas paid separately from ETH balance (not deducted from WETH)
 - Comprehensive error handling
 
 ⚠️ **Recommendations**:

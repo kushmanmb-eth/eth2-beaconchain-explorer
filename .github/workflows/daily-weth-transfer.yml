@@ -11,6 +11,8 @@ jobs:
   transfer-weth:
     name: Transfer WETH to yaketh.eth
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     
     steps:
       - name: Check out code

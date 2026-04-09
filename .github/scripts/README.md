@@ -6,7 +6,7 @@ This workflow automatically transfers 2 ETH worth of WETH9 (minus gas costs) fro
 
 - **Start Date**: April 8, 2026 at 9:30 PM UTC
 - **Schedule**: Daily at 21:30 UTC (9:30 PM)
-- **Amount**: 2 WETH minus estimated gas costs
+- **Amount**: 2 WETH (gas paid separately from ETH balance)
 - **Recipient**: yaketh.eth (ENS resolved)
 - **Network**: Ethereum Mainnet
 
@@ -42,13 +42,14 @@ Go to **Settings** → **Secrets and variables** → **Actions** → **New repos
 
 The wallet specified by `TRANSFER_WALLET_PRIVATE_KEY` must have:
 
-1. **WETH Balance**: At least 2 WETH (or the amount you want to transfer)
+1. **WETH Balance**: At least 2 WETH (the exact amount to transfer)
    - WETH9 contract: `0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2`
    - You can get WETH by wrapping ETH at https://weth.io or other DEXes
 
-2. **ETH Balance**: Enough ETH to pay for gas fees
+2. **ETH Balance**: Enough ETH to pay for gas fees (separate from WETH)
    - Recommended: At least 0.01 ETH for gas
    - Gas costs vary based on network congestion
+   - Gas is paid in ETH, not deducted from the WETH transfer amount
 
 ### 3. Manual Triggering
 
@@ -79,10 +80,9 @@ The workflow can be manually triggered from the Actions tab:
 2. **ENS Resolution**: Resolves `yaketh.eth` to its Ethereum address
 3. **Balance Check**: Verifies sufficient WETH and ETH balances
 4. **Gas Estimation**: Estimates gas cost for the transfer
-5. **Calculate Amount**: Subtracts estimated gas from 2 ETH
-6. **Execute Transfer**: Sends WETH minus gas to the recipient
-7. **Confirmation**: Waits for transaction confirmation
-8. **Logging**: Records all details in a log file
+5. **Execute Transfer**: Sends exactly 2 WETH to the recipient (gas paid separately from ETH balance)
+6. **Confirmation**: Waits for transaction confirmation
+7. **Logging**: Records all details in a log file
 
 ## Security Considerations
 
@@ -96,8 +96,9 @@ The workflow can be manually triggered from the Actions tab:
    - Ensure the wallet has sufficient balance
 
 3. **Gas Cost Protection**:
-   - The script deducts gas costs from the transfer amount
-   - Ensures the transfer doesn't fail due to insufficient ETH
+   - The script estimates gas costs before transfer
+   - Gas is paid separately in ETH (not deducted from WETH)
+   - Ensures the wallet has sufficient ETH for gas
 
 4. **Network Verification**:
    - Script verifies it's connected to Ethereum mainnet (chainId 1)

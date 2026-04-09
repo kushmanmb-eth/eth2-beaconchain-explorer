@@ -101,16 +101,7 @@ async function main() {
     log(`Gas price: ${ethers.formatUnits(gasPrice, 'gwei')} gwei`);
     log(`Estimated gas cost: ${ethers.formatEther(estimatedGasCost)} ETH`);
 
-    // Calculate amount minus gas
-    const amountMinusGas = targetAmount - estimatedGasCost;
-    
-    if (amountMinusGas <= 0n) {
-      throw new Error('Gas cost exceeds transfer amount');
-    }
-    
-    log(`Amount to transfer (minus gas): ${ethers.formatEther(amountMinusGas)} WETH`);
-
-    // Check ETH balance for gas
+    // Check ETH balance for gas (gas is paid in ETH, not deducted from WETH)
     const ethBalance = await provider.getBalance(wallet.address);
     log(`ETH balance: ${ethers.formatEther(ethBalance)} ETH`);
     
@@ -120,9 +111,10 @@ async function main() {
       );
     }
 
-    // Execute the transfer
+    // Execute the transfer (full targetAmount - gas is paid separately from ETH balance)
+    log(`Transferring ${amountEth} WETH to ${recipientAddress}...`);
     log('Executing WETH transfer...');
-    const tx = await weth.transfer(resolvedAddress, amountMinusGas);
+    const tx = await weth.transfer(resolvedAddress, targetAmount);
     
     log(`Transaction submitted: ${tx.hash}`);
     log('Waiting for confirmation...');
@@ -141,7 +133,8 @@ async function main() {
     // Verify final balance
     const newWethBalance = await weth.balanceOf(wallet.address);
     log(`New WETH balance: ${ethers.formatEther(newWethBalance)} WETH`);
-    log(`Transfer amount: ${ethers.formatEther(amountMinusGas)} WETH`);
+    log(`Transfer amount: ${ethers.formatEther(targetAmount)} WETH`);
+    log(`Gas paid (in ETH): ${ethers.formatEther(receipt.gasUsed * receipt.gasPrice)} ETH`);
     
     log('✅ Transfer completed successfully!');
     log(`Transaction: https://etherscan.io/tx/${tx.hash}`);
