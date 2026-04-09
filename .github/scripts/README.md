@@ -92,7 +92,7 @@ The workflow can be manually triggered from the Actions tab:
    - Consider using a dedicated wallet for automated transfers
 
 2. **Amount Limits**:
-   - The script transfers a fixed amount (2 ETH by default)
+   - The script transfers a fixed amount (2 WETH by default)
    - Ensure the wallet has sufficient balance
 
 3. **Gas Cost Protection**:
