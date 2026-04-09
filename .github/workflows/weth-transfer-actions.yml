@@ -1,0 +1,183 @@
+name: WETH Transfer Actions CI
+
+permissions:
+  contents: read
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - master
+      - staging
+    paths:
+      - 'erc20/weth/**'
+      - 'erc20/erc20.go'
+      - '.github/workflows/weth-transfer-actions.yml'
+  pull_request:
+    branches:
+      - master
+      - staging
+    paths:
+      - 'erc20/weth/**'
+      - 'erc20/erc20.go'
+      - '.github/workflows/weth-transfer-actions.yml'
+
+jobs:
+  test-weth-transfers:
+    name: Test WETH Transfer Actions
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: './go.mod'
+      
+      - name: Output Go version
+        run: go version
+      
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      
+      - name: Get dependencies
+        run: |
+          go get -v -t -d ./...
+      
+      - name: Run WETH transfer tests
+        run: |
+          echo "Running WETH transfer action tests..."
+          go test -v -race -coverprofile=coverage.txt -covermode=atomic ./erc20/weth/...
+      
+      - name: Display test coverage
+        run: |
+          go tool cover -func=coverage.txt
+      
+      - name: Upload coverage to artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: weth-coverage
+          path: coverage.txt
+          retention-days: 7
+      
+      - name: Check test results
+        run: |
+          echo "All WETH transfer action tests passed successfully!"
+          echo "Note: Tests verify ABI parsing, method encoding/decoding, and event handling."
+          echo "Coverage of auto-generated bindings is 0% as those require blockchain connection."
+
+  lint-weth:
+    name: Lint WETH Code
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: './go.mod'
+      
+      - name: Get dependencies
+        run: |
+          go get -v -t -d ./...
+      
+      - name: Run go vet on WETH package
+        run: |
+          go vet ./erc20/weth/...
+      
+      - name: Check gofmt
+        run: |
+          nonformatted="$(gofmt -l ./erc20/weth 2>&1)"
+          [ -z "$nonformatted" ] && exit 0
+          echo "Following files in erc20/weth need to be properly formatted:"
+          echo "$nonformatted"
+          exit 1
+      
+      - name: Run staticcheck
+        uses: dominikh/staticcheck-action@v1.3.1
+        with:
+          version: "2025.1"
+          install-go: false
+          build-tags: ""
+          checks: "all,-ST1000,-ST1003,-ST1016,-ST1020,-ST1021,-ST1022"
+
+  verify-bindings:
+    name: Verify WETH Bindings
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: './go.mod'
+      
+      - name: Install abigen
+        run: |
+          go install github.com/ethereum/go-ethereum/cmd/abigen@latest
+      
+      - name: Verify bindings are up to date
+        run: |
+          cd erc20/weth
+          echo "Checking if WETH bindings are up to date..."
+          
+          # Generate bindings to a temporary file
+          abigen --abi abi.json --pkg weth --type Weth --out bindings_temp.go
+          
+          # Compare with existing bindings (ignoring comments and whitespace differences)
+          if ! diff -w <(grep -v "^//" bindings.go) <(grep -v "^//" bindings_temp.go) > /dev/null; then
+            echo "ERROR: WETH bindings are out of date!"
+            echo "Please regenerate bindings using: cd erc20/weth && abigen --abi abi.json --pkg weth --type Weth --out bindings.go"
+            rm bindings_temp.go
+            exit 1
+          fi
+          
+          rm bindings_temp.go
+          echo "WETH bindings are up to date!"
+
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [test-weth-transfers, lint-weth]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: './go.mod'
+      
+      - name: Get dependencies
+        run: |
+          go get -v -t -d ./...
+      
+      - name: Build application with WETH support
+        run: |
+          echo "Building with WETH transfer support enabled..."
+          go build -v ./erc20/...
+      
+      - name: Verify WETH package imports
+        run: |
+          echo "Checking for WETH package usage in codebase..."
+          if grep -r "github.com/gobitfly/eth2-beaconchain-explorer/erc20/weth" --include="*.go" .; then
+            echo "Found WETH package imports"
+          else
+            echo "Warning: WETH package may not be used in the codebase yet"
+          fi
