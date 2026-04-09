@@ -351,6 +351,10 @@ func main() {
 		apiV1Router.HandleFunc("/ens/lookup/{domain}", handlers.ResolveEnsDomain).Methods("GET", "OPTIONS")
 		apiV1Router.Use(utils.CORSMiddleware)
 
+		apiV2Router := router.PathPrefix("/api/v2").Subrouter()
+		apiV2Router.HandleFunc("/ethereum/validators", handlers.ApiV2EthereumValidators).Methods("POST", "OPTIONS")
+		apiV2Router.Use(utils.CORSMiddleware)
+
 		apiV1AuthRouter := apiV1Router.PathPrefix("/user").Subrouter()
 		apiV1AuthRouter.HandleFunc("/mobile/notify/register", handlers.MobileNotificationUpdatePOST).Methods("POST", "OPTIONS")
 		apiV1AuthRouter.HandleFunc("/mobile/settings", handlers.MobileDeviceSettings).Methods("GET", "OPTIONS")
