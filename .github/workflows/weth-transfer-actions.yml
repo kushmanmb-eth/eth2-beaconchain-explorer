@@ -65,7 +65,7 @@ jobs:
           go tool cover -func=coverage.txt
       
       - name: Upload coverage to artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
           name: weth-coverage
           path: coverage.txt
