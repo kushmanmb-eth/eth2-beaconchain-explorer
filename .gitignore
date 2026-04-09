@@ -36,3 +36,4 @@ local-deployment/.env
 __gitignore
 cmd/validator-tagger/*.csv
 coverage.txt
+cmd/validator-tagger/*.csvexplorer
