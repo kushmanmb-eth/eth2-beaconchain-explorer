@@ -167,7 +167,7 @@ func TestTransferEventDecoding(t *testing.T) {
 
 	// Create test event data
 	amount := big.NewInt(1000000000000000000) // 1 WETH
-	
+
 	// Pack the non-indexed data (amount)
 	data, err := transferEvent.Inputs.NonIndexed().Pack(amount)
 	if err != nil {
@@ -178,7 +178,7 @@ func TestTransferEventDecoding(t *testing.T) {
 	var decoded struct {
 		Wad *big.Int
 	}
-	
+
 	err = parsedABI.UnpackIntoInterface(&decoded, "Transfer", data)
 	if err != nil {
 		t.Fatalf("Failed to unpack Transfer event: %v", err)
@@ -222,7 +222,7 @@ func TestDepositAndWithdrawMethods(t *testing.T) {
 func TestWethBindingsExist(t *testing.T) {
 	// This test verifies that the auto-generated types exist
 	// by attempting to reference them
-	
+
 	// These types should be available from bindings.go
 	var _ *Weth
 	var _ *WethCaller
