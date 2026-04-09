@@ -1,6 +1,6 @@
 # Daily WETH Transfer Workflow
 
-This workflow automatically transfers 2 ETH worth of WETH9 (minus gas costs) from a configured wallet to `yaketh.eth` on Ethereum mainnet every day at 9:30 PM UTC.
+This workflow automatically transfers exactly 2 WETH from a configured wallet to `yaketh.eth` on Ethereum mainnet every day at 9:30 PM UTC. Gas fees are paid separately from the wallet's ETH balance.
 
 ## Overview
 

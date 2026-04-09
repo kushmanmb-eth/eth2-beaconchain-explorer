@@ -3,8 +3,8 @@
 /**
  * Daily WETH Transfer Script
  * 
- * This script transfers 2 ETH worth of WETH9 (minus gas costs) to yaketh.eth
- * on Ethereum mainnet.
+ * This script transfers exactly 2 WETH to yaketh.eth on Ethereum mainnet.
+ * Gas fees are paid separately from the wallet's ETH balance.
  */
 
 const { ethers } = require('ethers');

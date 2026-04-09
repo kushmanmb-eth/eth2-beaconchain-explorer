@@ -2,7 +2,7 @@
 
 ## What Was Created
 
-This implementation configures a GitHub Actions workflow to automatically transfer 2 ETH worth of WETH9 (minus gas costs) to yaketh.eth on Ethereum mainnet.
+This implementation configures a GitHub Actions workflow to automatically transfer exactly 2 WETH to yaketh.eth on Ethereum mainnet. Gas fees are paid separately from the wallet's ETH balance.
 
 ## Files Created
 
@@ -17,8 +17,8 @@ This implementation configures a GitHub Actions workflow to automatically transf
    - Features:
      - ENS resolution for yaketh.eth
      - WETH9 contract interaction
-     - Gas estimation and cost calculation
-     - Transfers 2 WETH minus estimated gas
+     - Gas estimation and verification
+     - Transfers exactly 2 WETH (gas paid separately in ETH)
      - Comprehensive logging and error handling
      - Transaction confirmation and verification
 
