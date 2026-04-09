@@ -1,0 +1,48 @@
+name: Daily WETH Transfer
+
+on:
+  schedule:
+    # Run daily at 9:30 PM UTC (21:30)
+    # Started: April 8, 2026
+    - cron: '30 21 * * *'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  transfer-weth:
+    name: Transfer WETH to yaketh.eth
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install ethers.js
+        run: npm install ethers@^6.13.0
+
+      - name: Execute WETH transfer
+        env:
+          PRIVATE_KEY: ${{ secrets.TRANSFER_WALLET_PRIVATE_KEY }}
+          RPC_URL: ${{ secrets.ETHEREUM_RPC_URL }}
+          RECIPIENT_ADDRESS: yaketh.eth
+          AMOUNT_ETH: "2"
+          START_DATE: "2026-04-08" # Transfers started on this date
+        run: node .github/scripts/transfer-weth.js
+
+      - name: Upload transfer logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: transfer-logs
+          path: transfer-log-*.txt
+          retention-days: 30
